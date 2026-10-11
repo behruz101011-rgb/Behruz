@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Coin O'yini</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  html, body { margin: 0; height: 100%; overflow: hidden; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: #fff; }
+  body {
+    background:
+      radial-gradient(ellipse 60% 18% at 25% 14%, rgba(255,255,255,.85), transparent 70%),
+      radial-gradient(ellipse 55% 14% at 78% 26%, rgba(255,255,255,.75), transparent 70%),
+      linear-gradient(180deg, #4aa8e0 0%, #8fd0ee 38%, #8fcf6a 62%, #3f8f3a 100%);
+  }
+  .screen { position: absolute; inset: 0; padding: 56px 16px 110px; display: none; flex-direction: column; align-items: center; }
+  .screen.active { display: flex; }
+  .balance { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 44px; font-weight: 800; text-shadow: 0 2px 8px rgba(0,0,0,.35); }
+  .mini-coin { width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff1a8, #f5b800 55%, #b57700); box-shadow: inset 0 0 0 3px #ffd84a; }
+  .coin-wrap { flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
+  .coin {
+    width: min(70vw, 300px); aspect-ratio: 1; border-radius: 50%;
+    background: radial-gradient(circle at 32% 28%, #fff4b0 0%, #ffd23f 28%, #f0a500 62%, #b36b00 100%);
+    box-shadow: inset 0 0 0 10px #ffc933, inset 0 0 0 14px #c98400, 0 18px 40px rgba(0,0,0,.35);
+    display: flex; align-items: center; justify-content: center;
+    font-size: min(34vw, 150px); color: #fff3b8; text-shadow: 0 4px 0 #b36b00, 0 8px 14px rgba(0,0,0,.35);
+    transition: transform .06s ease-out; touch-action: manipulation;
+  }
+  .coin.press { transform: scale(.94); }
+  .float { position: fixed; font-size: 28px; font-weight: 800; pointer-events: none; text-shadow: 0 2px 6px rgba(0,0,0,.5); animation: up .8s ease-out forwards; }
+  @keyframes up { to { transform: translateY(-90px); opacity: 0; } }
+  .energy { align-self: flex-end; font-size: 30px; font-weight: 800; text-shadow: 0 2px 6px rgba(0,0,0,.4); margin-bottom: 6px; }
+  .energy small { font-size: 18px; opacity: .75; }
+  .bar { width: 100%; height: 10px; border-radius: 6px; background: rgba(0,0,0,.25); overflow: hidden; margin-bottom: 8px; }
+  .bar > div { height: 100%; width: 100%; background: linear-gradient(90deg, #ffe066, #ffb300); transition: width .2s; }
+  .card { width: 100%; background: rgba(20,60,25,.55); backdrop-filter: blur(8px); border-radius: 18px; padding: 16px; margin-top: 14px; }
+  .card h3 { margin: 0 0 4px; }
+  .card p { margin: 0 0 12px; opacity: .85; font-size: 14px; }
+  button.buy { width: 100%; padding: 12px; border: 0; border-radius: 12px; font-size: 16px; font-weight: 700; background: #ffc933; color: #4a3200; }
+  button.buy:disabled { opacity: .5; }
+  .title { font-size: 26px; font-weight: 800; margin: 8px 0 4px; text-shadow: 0 2px 6px rgba(0,0,0,.35); }
+  .soon { margin: auto; font-size: 18px; opacity: .9; text-align: center; }
+  nav { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 4px; padding: 8px; border-radius: 22px; background: rgba(20,60,25,.65); backdrop-filter: blur(10px); }
+  nav button { flex: 1; border: 0; background: transparent; color: #fff; padding: 8px 2px; border-radius: 16px; font-size: 11px; font-weight: 700; letter-spacing: .5px; display: flex; flex-direction: column; align-items: center; gap: 2px; opacity: .8; }
+  nav button span { font-size: 22px; }
+  nav button.active { background: rgba(255,255,255,.22); opacity: 1; }
+</style>
+</head>
+<body>
+
+<section class="screen active" id="tab-tap">
+  <div class="balance"><div class="mini-coin"></div><span id="coins">0</span></div>
+  <div class="coin-wrap"><div class="coin" id="coin">★</div></div>
+  <div class="energy"><span id="energy">0</span><small>/<span id="maxEnergy">200</span></small></div>
+  <div class="bar"><div id="energyBar"></div></div>
+</section>
+
+<section class="screen" id="tab-boost">
+  <div class="title">Boost</div>
+  <div class="card">
+    <h3>Multitap <span id="mtLevel"></span></h3>
+    <p>Har bosishda ko'proq coin olasiz. Hozir: <b id="mtValue">1</b> coin / bosish</p>
+    <button class="buy" id="buyMultitap">Sotib olish</button>
+  </div>
+</section>
+
+<section class="screen" id="tab-tasks">
+  <div class="title">Vazifalar</div>
+  <div class="soon">Tez orada ✨</div>
+</section>
+
+<section class="screen" id="tab-auction">
+  <div class="title">Auksion</div>
+  <div class="soon">Tez orada ✨</div>
+</section>
+
+<section class="screen" id="tab-profile">
+  <div class="title">Profil</div>
+  <div class="card">
+    <h3 id="pName">—</h3>
+    <p>Jami coin: <b id="pCoins">0</b></p>
+    <p>Multitap darajasi: <b id="pLevel">0</b></p>
+  </div>
+</section>
+
+<nav>
+  <button data-tab="boost"><span>🚀</span>BOOST</button>
+  <button data-tab="tasks"><span>✅</span>VAZIFALAR</button>
+  <button data-tab="tap" class="active"><span>👆</span>BOSISH</button>
+  <button data-tab="auction"><span>🔨</span>AUKSION</button>
+  <button data-tab="profile"><span>👤</span>PROFIL</button>
+</nav>
+
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+// Kompyuterda sinash uchun: sahifa manzili oxiriga ?dev=1 qo'shing (serverda DEV_MODE=1 bo'lsa)
+const initData = (tg && tg.initData) || (new URLSearchParams(location.search).get("dev") ? "dev" : "");
+
+let S = { coins: 0, energy: 0, max_energy: 200, regen_per_sec: 1, tap_value: 1, multitap_level: 0, multitap_cost: 500, name: "" };
+let pending = 0;
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Math.floor(n).toLocaleString("ru-RU");
+
+async function api(path, method = "GET", body) {
+  const res = await fetch(path, {
+    method,
+    headers: { "Content-Type": "application/json", "X-Init-Data": initData },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    let msg = "Xatolik";
+    try { msg = (await res.json()).detail || msg; } catch (e) {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+function render() {
+  $("coins").textContent = fmt(S.coins);
+  $("energy").textContent = Math.floor(S.energy);
+  $("maxEnergy").textContent = S.max_energy;
+  $("energyBar").style.width = (S.energy / S.max_energy * 100) + "%";
+  $("mtLevel").textContent = "(daraja " + S.multitap_level + ")";
+  $("mtValue").textContent = S.tap_value;
+  const btn = $("buyMultitap");
+  if (S.multitap_cost === null) { btn.textContent = "Maksimal daraja"; btn.disabled = true; }
+  else { btn.textContent = "Sotib olish: " + fmt(S.multitap_cost) + " coin"; btn.disabled = S.coins < S.multitap_cost; }
+  $("pName").textContent = S.name || "O'yinchi";
+  $("pCoins").textContent = fmt(S.coins);
+  $("pLevel").textContent = S.multitap_level;
+}
+
+function applyServer(s) {
+  // Server javobiga hali yuborilmagan bosishlarni qo'shib qo'yamiz
+  S = s;
+  S.coins += pending * S.tap_value;
+  S.energy = Math.max(0, S.energy - pending);
+  render();
+}
+
+// ---- Bosish ----
+const coin = $("coin");
+coin.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  coin.classList.add("press");
+  setTimeout(() => coin.classList.remove("press"), 80);
+  if (S.energy < 1) return;
+  S.energy -= 1;
+  S.coins += S.tap_value;
+  pending += 1;
+  if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred("light");
+  const f = document.createElement("div");
+  f.className = "float";
+  f.textContent = "+" + S.tap_value;
+  f.style.left = (e.clientX - 12) + "px";
+  f.style.top = (e.clientY - 30) + "px";
+  document.body.appendChild(f);
+  setTimeout(() => f.remove(), 800);
+  render();
+});
+
+let sending = false;
+async function flush() {
+  if (sending || pending === 0) return;
+  sending = true;
+  const n = Math.min(pending, 100);
+  pending -= n;
+  try {
+    applyServer(await api("/api/tap", "POST", { taps: n }));
+  } catch (e) {
+    pending += n; // keyingi urinishda qayta yuboriladi
+  }
+  sending = false;
+}
+setInterval(flush, 1000);
+
+// Energiya sekin tiklanadi
+setInterval(() => {
+  if (S.energy < S.max_energy) { S.energy = Math.min(S.max_energy, S.energy + S.regen_per_sec); render(); }
+}, 1000);
+
+// ---- Boost ----
+$("buyMultitap").addEventListener("click", async () => {
+  await flush();
+  try { applyServer(await api("/api/boost/multitap", "POST")); }
+  catch (e) { (tg && tg.showAlert) ? tg.showAlert(e.message) : alert(e.message); }
+});
+
+// ---- Menyu ----
+document.querySelectorAll("nav button").forEach((b) => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll("nav button").forEach((x) => x.classList.remove("active"));
+    document.querySelectorAll(".screen").forEach((x) => x.classList.remove("active"));
+    b.classList.add("active");
+    $("tab-" + b.dataset.tab).classList.add("active");
+  });
+});
+
+api("/api/me").then((s) => { S = s; render(); }).catch((e) => {
+  document.body.insertAdjacentHTML("beforeend", "<div class='float' style='left:20px;top:80px;animation:none'>" + e.message + "</div>");
+});
+render();
+</script>
+</body>
+</html>
